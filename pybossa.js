@@ -23,6 +23,8 @@ if (typeof(console) == 'undefined') {
   };
 }
 
+strangelog = [];
+
 (function( pybossa, $, undefined ) {
     var url = '/';
 
@@ -35,6 +37,7 @@ if (typeof(console) == 'undefined') {
             dataType:'json'
         })
         .pipe( function( data ) {
+            strangelog.push({call: 'getApp', appname: appname, data: data});
             return data[0];
         } );
     }
@@ -45,6 +48,7 @@ if (typeof(console) == 'undefined') {
             dataType: 'json'
         })
         .pipe( function( data ) {
+            strangelog.push({call: 'getTaskRun', app: app, data: data});
             taskrun = { question: app.description, task: data};
             return taskrun;
         });
@@ -56,6 +60,7 @@ if (typeof(console) == 'undefined') {
             dataType: 'json'
         })
         .pipe( function( data ) {
+            strangelog.push({call: 'getTask', taskid: taskid, answer:answer, data: data});
             tmp = data;
             tmp.answer = answer;
             return tmp;
@@ -80,6 +85,7 @@ if (typeof(console) == 'undefined') {
             data: taskrun
         })
         .pipe( function( data ) {
+            strangelog.push({call: 'createTaskRun', taskrun: taskrun, data: data});
             return data;
         });
     }
@@ -102,6 +108,9 @@ if (typeof(console) == 'undefined') {
         return $.ajax({
             url: url + 'api/app/' + appname + '/userprogress',
             dataType: 'json'
+        }).pipe(function (data) {
+            strangelog.push({call: 'userProgress', appname: appname, data: data});
+            return data;
         });
     }
 
@@ -126,6 +135,8 @@ if (typeof(console) == 'undefined') {
             data: 'short_name=' + appname,
             dataType:'json'
         }).done(function(app) {
+            strangelog.push({call: 'run:app', appname: appname, data: app});
+
             app = app[0];
             function getTask(offset) {
                 offset = offset || 0;
@@ -134,6 +145,9 @@ if (typeof(console) == 'undefined') {
                     url: url + 'api/app/' + app.id + '/newtask',
                     data: 'offset=' + offset,
                     dataType: 'json'
+                }).pipe(function (data) {
+                    strangelog.push({call: 'run:getTask:newtask', appname: appname, offset: offset, data: data});
+                    return data;
                 });
                 if (window.history.length <= 1) {
                     var taskId = getCurrentTaskId(window.location.pathname);
@@ -142,10 +156,14 @@ if (typeof(console) == 'undefined') {
                         var xhr = $.ajax({
                             url: url + 'api/task/' + taskId,
                             dataType: 'json'
-                        })
+                        }).pipe(function (data) {
+                            strangelog.push({call: 'run:getTask:byid', appname: appname, taskid: TaskId, data: data});
+                            return data;
+                        });
                     }
                 }
                 xhr.done(function(task) {
+                    strangelog.push({call: 'run:getTask:done', appname: appname, offset: offset, task: task});
                     var udef = $.Deferred();
                     me.__taskLoaded(task, udef);
                     udef.done(function(task) {
@@ -156,6 +174,7 @@ if (typeof(console) == 'undefined') {
             }
 
             function loop(task, answer) {
+                strangelog.push({call: 'loop', task:task, answer:answer});
                 var nextLoaded = getTask(1),
                 taskSolved = $.Deferred();
                 if (task.id) {
@@ -186,10 +205,12 @@ if (typeof(console) == 'undefined') {
 
     // Public methods
     pybossa.newTask = function ( appname ) {
+        strangelog.push({call: 'newTask', appname:appname});
         return getApp(appname).pipe(getTaskRun);
     };
 
     pybossa.saveTask = function ( taskid, answer ) {
+        strangelog.push({call: 'saveTask', taskid:taskid, answer:answer});
         return getTask( taskid, answer ).pipe(createTaskRun);
     };
 
